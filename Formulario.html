@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <?!= include('EstilosForm'); ?>
+  </head>
+  <body>
+    <div class="form-container">
+      <div class="progress-bar"><div id="progress" class="progress-fill"></div></div>
+      
+      <div id="loading-overlay" class="hidden"><div class="spinner"></div></div>
+
+      <div id="step0" class="step active">
+        <h2>Bienvenido</h2>
+        <p>Ingrese su DNI para comenzar</p>
+        <input type="number" id="dni" placeholder="Número de DNI" required>
+        <button class="btn-next" onclick="validarPaso0()">Ingresar</button>
+      </div>
+
+      <div id="step1" class="step">
+        <h2>Datos Personales</h2>
+        <input type="text" id="nombres" placeholder="Nombres y Apellidos *" required>
+        <input type="email" id="correo" placeholder="Correo electrónico *" required>
+        <input type="tel" id="telefono" placeholder="Teléfono (Opcional)">
+        <div class="nav-btns">
+          <button class="btn-back" onclick="changeStep(0)">Atrás</button>
+          <button class="btn-next" onclick="validarPaso1()">Siguiente</button>
+        </div>
+      </div>
+
+      <div id="step2" class="step">
+        <h2>Sobre usted</h2>
+        <label>¿A qué grupo pertenece? *</label>
+        <div class="radio-group">
+          <label><input type="radio" name="perfil" value="Ciudadano" onclick="toggleInstitucion(false)"> Ciudadano</label>
+          <label><input type="radio" name="perfil" value="Institucion" onclick="toggleInstitucion(true)"> Institución</label>
+        </div>
+
+        <select id="sexo"><option value="">Seleccione Sexo *</option></select>
+        <select id="edad"><option value="">Rango de Edad *</option></select>
+
+        <div class="nav-btns">
+          <button class="btn-back" onclick="changeStep(1)">Atrás</button>
+          <button id="btn-p2-next" class="btn-next" onclick="validarPaso2()">Siguiente</button>
+        </div>
+      </div>
+
+      <div id="step3" class="step">
+        <h2>Datos de Institución</h2>
+              
+        <input list="lista-inst" id="inst-input" placeholder="Buscar Institución *" oninput="actualizarAreasRelacionadas()">        
+        <datalist id="lista-inst"></datalist>
+        <input type="text" id="inst-otra" class="hidden" placeholder="Escriba el nombre de la Institución *">
+
+        <input list="lista-area" id="area-input" placeholder="Buscar Área/Dirección *" onchange="checkOtra('area')">
+        <datalist id="lista-area"></datalist>
+        <input type="text" id="area-otra" class="hidden" placeholder="Escriba el nombre del Área *">
+
+        <select id="cargo"><option value="">Seleccione su Cargo *</option></select>
+
+        <div class="nav-btns">
+          <button class="btn-back" onclick="changeStep(2)">Atrás</button>
+          <button class="btn-save" onclick="finalizarRegistro()">Finalizar</button>
+        </div>
+      </div>
+
+      <div id="step-final" class="step">
+        <div class="success-icon">✅</div>
+        <h2 id="final-title"></h2>
+        <p id="final-msg"></p>
+        <button onclick="window.location.reload()">Cerrar</button>
+      </div>
+    </div>
+
+    <script>
+      let idEventoActual = "<?!= idEvento ?>";
+      let opciones = {};
+      let totalSteps = 3;
+
+      window.onload = () => {
+        google.script.run.withSuccessHandler(data => {
+          opciones = data;
+          llenarSelectores();
+        }).obtenerOpcionesFormulario();
+      };
+
+      function llenarSelectores() {
+        const fill = (id, list) => {
+          const el = document.getElementById(id);
+          list.forEach(item => {
+            const opt = document.createElement(id.includes('lista') ? 'option' : 'option');
+            opt.value = item;
+            opt.textContent = item;
+            el.appendChild(opt);
+          });
+          if(id.includes('lista')) {
+            const extra = document.createElement('option');
+            extra.value = "OTRA (Especificar)";
+            el.appendChild(extra);
+          }
+        };
+        fill('lista-inst', opciones.instituciones);
+        fill('lista-area', opciones.areas);
+        fill('cargo', opciones.cargos);
+        fill('sexo', opciones.sexos);
+        fill('edad', opciones.edades);
+      }
+
+      function changeStep(n) {
+        document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+        document.getElementById('step' + n).classList.add('active');
+        document.getElementById('progress').style.width = (n / totalSteps * 100) + "%";
+      }
+
+      // 1. Llenar selectores iniciales
+    function llenarSelectores() {
+      const listaInst = document.getElementById('lista-inst');
+      
+      // Limpiar y llenar Instituciones únicas
+      listaInst.innerHTML = "";
+      opciones.instituciones.forEach(inst => {
+        const opt = document.createElement('option');
+        opt.value = inst;
+        listaInst.appendChild(opt);
+      });
+      
+      // Opción OTRA para Institución
+      const optOtra = document.createElement('option');
+      optOtra.value = "OTRA (Especificar)";
+      listaInst.appendChild(optOtra);
+
+      // Llenar los selects simples
+      const fillSelect = (id, list) => {
+        const el = document.getElementById(id);
+        list.forEach(item => {
+          const opt = document.createElement('option');
+          opt.value = item;
+          opt.textContent = item;
+          el.appendChild(opt);
+        });
+      };
+      fillSelect('cargo', opciones.cargos);
+      fillSelect('sexo', opciones.sexos);
+      fillSelect('edad', opciones.edades);
+    }
+
+    // 2. FUNCIÓN CLAVE: Actualizar Áreas según Institución elegida
+    function actualizarAreasRelacionadas() {
+      const instElegida = document.getElementById('inst-input').value;
+      const listaArea = document.getElementById('lista-area');
+      const areaInput = document.getElementById('area-input');
+      
+      // Limpiar buscador de áreas y su input
+      listaArea.innerHTML = "";
+      areaInput.value = ""; 
+      
+      checkOtra('inst'); // Verificar si eligió "OTRA" en Institución
+
+      if (opciones.relacion[instElegida]) {
+        // Si la institución existe en nuestra base, cargar sus áreas
+        opciones.relacion[instElegida].forEach(area => {
+          const opt = document.createElement('option');
+          opt.value = area;
+          listaArea.appendChild(opt);
+        });
+      }
+      
+      // Siempre añadir "OTRA" al final de las áreas
+      const optOtraArea = document.createElement('option');
+      optOtraArea.value = "OTRA (Especificar)";
+      listaArea.appendChild(optOtraArea);
+    }
+
+      function validarPaso0() {
+        const dni = document.getElementById('dni').value;
+        if(dni.length < 8) return alert("Ingrese un DNI válido");
+        toggleLoading(true);
+        google.script.run.withSuccessHandler(res => {
+          toggleLoading(false);
+          if(res.status === "duplicado" || res.status === "registrado") {
+             mostrarExito(res.status === "duplicado" ? "Ya registrado" : "¡Bienvenido!", 
+                        res.status === "duplicado" ? "Ya marcó asistencia hoy." : "Asistencia registrada correctamente.");
+          } else {
+             changeStep(1);
+          }
+        }).validarDNI(dni, idEventoActual);
+      }
+
+      function validarPaso1() {
+        if(!document.getElementById('nombres').value || !document.getElementById('correo').value.includes('@')) 
+          return alert("Complete los campos obligatorios correctamente");
+        changeStep(2);
+      }
+
+      function validarPaso2() {
+        const perfil = document.querySelector('input[name="perfil"]:checked')?.value;
+        const sexo = document.getElementById('sexo').value;
+        const edad = document.getElementById('edad').value;
+
+        if (!perfil || !sexo || !edad) {
+          return alert("Por favor, complete Sexo, Edad y Perfil.");
+        }
+
+        if (perfil === "Institucion") {
+          changeStep(3);
+        } else {
+          // Si es ciudadano, registramos directamente
+          finalizarRegistro();
+        }
+      }
+
+     function validarPaso2() {
+    const perfil = document.querySelector('input[name="perfil"]:checked')?.value;
+    const sexo = document.getElementById('sexo').value;
+    const edad = document.getElementById('edad').value;
+
+    // 1. Validar Perfil (Radio)
+    if (!perfil) {
+      alert("⚠️ Por favor, seleccione si es Ciudadano o Institución.");
+      return;
+    }
+
+    // 2. Validar Sexo (Select)
+    if (sexo === "") {
+      alert("⚠️ Por favor, seleccione su Sexo.");
+      return;
+    }
+
+    // 3. Validar Edad (Select)
+    if (edad === "") {
+      alert("⚠️ Por favor, seleccione su Rango de Edad.");
+      return;
+    }
+
+    // Si pasó los 3 filtros anteriores, decidimos el camino
+    if (perfil === "Institucion") {
+      changeStep(3);
+    } else {
+      // Es ciudadano y ya validamos sexo/edad, podemos finalizar
+      finalizarRegistro();
+    }
+}
+
+      function toggleInstitucion(isInst) {
+        const btn = document.getElementById('btn-p2-next');
+        btn.innerText = isInst ? "Siguiente" : "Finalizar Registro";
+        
+        // Hacemos que el botón siempre apunte a validarPaso2
+        btn.onclick = function() { validarPaso2(); };
+      }
+
+      function checkOtra(tipo) {
+        const val = document.getElementById(tipo + '-input').value;
+        document.getElementById(tipo + '-otra').classList.toggle('hidden', val !== "OTRA (Especificar)");
+      }
+
+     function finalizarRegistro() {
+    // 1. Captura de valores básicos
+    const perfil = document.querySelector('input[name="perfil"]:checked')?.value;
+    const sexo = document.getElementById('sexo').value;
+    const edad = document.getElementById('edad').value;
+
+    // --- VALIDACIÓN UNIVERSAL (Aplica para todos) ---
+    if (!perfil) return alert("⚠️ Debe seleccionar si es Ciudadano o Institución.");
+    if (!sexo || sexo === "") return alert("⚠️ Por favor, seleccione su Sexo.");
+    if (!edad || edad === "") return alert("⚠️ Por favor, seleccione su Rango de Edad.");
+
+    // 2. Captura de valores de institución
+    const instInput = document.getElementById('inst-input').value;
+    const instOtra = document.getElementById('inst-otra').value;
+    const areaInput = document.getElementById('area-input').value;
+    const areaOtra = document.getElementById('area-otra').value;
+    const cargo = document.getElementById('cargo').value;
+
+    // --- VALIDACIONES ESPECÍFICAS PARA INSTITUCIÓN ---
+    if (perfil === "Institucion") {
+      // Validar Institución
+      if (!instInput) return alert("⚠️ Debe seleccionar una Institución.");
+      if (instInput === "OTRA (Especificar)" && !instOtra.trim()) {
+        return alert("⚠️ Por favor, escriba el nombre de su institución.");
+      }
+
+      // Validar Área
+      if (!areaInput) return alert("⚠️ Debe seleccionar un Área/Dirección.");
+      if (areaInput === "OTRA (Especificar)" && !areaOtra.trim()) {
+        return alert("⚠️ Por favor, escriba el nombre de su área.");
+      }
+
+      // Validar Cargo
+      if (!cargo) return alert("⚠️ Debe seleccionar su cargo.");
+    }
+
+    // 3. Si llegó aquí, todo está validado. Construimos el paquete de datos.
+    const payload = {
+      idEvento: idEventoActual,
+      dni: document.getElementById('dni').value,
+      nombres: document.getElementById('nombres').value,
+      correo: document.getElementById('correo').value,
+      telefono: document.getElementById('telefono').value,
+      perfil: perfil,
+      sexo: sexo,
+      edad: edad,
+      // Si es ciudadano, enviamos "N/A" en los campos laborales
+      institucion: perfil === "Institucion" ? (instInput === "OTRA (Especificar)" ? instOtra : instInput) : "N/A",
+      area: perfil === "Institucion" ? (areaInput === "OTRA (Especificar)" ? areaOtra : areaInput) : "N/A",
+      cargo: perfil === "Institucion" ? cargo : "N/A"
+    };
+
+    toggleLoading(true);
+    google.script.run
+      .withSuccessHandler(() => {
+        toggleLoading(false);
+        mostrarExito("¡Registro Exitoso!", "Gracias por su participación.");
+      })
+      .registrarAsistenciaCompleta(payload);
+  }
+
+      function mostrarExito(t, m) {
+        document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+        document.getElementById('step-final').classList.add('active');
+        document.getElementById('final-title').innerText = t;
+        document.getElementById('final-msg').innerText = m;
+      }
+
+      function toggleLoading(s) { document.getElementById('loading-overlay').classList.toggle('hidden', !s); }
+
+    </script>
+  </body>
+</html>

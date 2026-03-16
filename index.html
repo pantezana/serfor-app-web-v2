@@ -1,0 +1,1457 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">   
+    <link rel="stylesheet" href="estilos.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+  </head>
+  <body>
+    <div class="main-container">
+   
+<div class="header-sticky">
+  <div id="login-section" style="padding: 20px; text-align: center; background: #ffffff; border-bottom: 1px solid #ddd; margin-bottom: 10px;">
+    <h3 style="margin-bottom: 15px; color: #2c3e50; font-family: sans-serif;">Identificación de Usuario</h3>
+    <div style="display: flex; justify-content: center;">
+      <div id="g_id_onload"
+           data-client_id="428208899473-h4k6qsltotpk08a7h8oarm46jg3bk88t.apps.googleusercontent.com"
+           data-callback="handleCredentialResponse"
+           data-auto_prompt="false">
+      </div>
+      <div class="g_id_signin" data-type="standard" data-shape="rectangular" data-theme="outline" data-text="signin_with" data-size="large" data-logo_alignment="left"></div>
+    </div>
+    <p style="font-size: 12px; color: #7f8c8d; margin-top: 10px;">Inicie sesión con su cuenta institucional para acceder a su agenda personal.</p>
+  </div>
+
+  <div id="app-content" style="display: none;">
+    <div class="top-bar">
+      <h2>📅 Agenda Semanal con auth 2</h2>                    
+      <div class="button-group">
+        <button class="btn-refresh" onclick="cargarDatos()">🔄 Sincronizar</button>
+        <button class="btn-emergencia" onclick="abrirModalCrear()">➕ Crear Evento</button>
+      </div>
+    </div>
+    
+    <div id="user-info" style="font-size: 11px; color: #27ae60; padding: 0 15px 5px; text-align: right; font-weight: bold;"></div>
+
+    <div class="search-box">
+      <input type="text" id="buscador" placeholder="Buscar evento..." onkeyup="filtrarEventos()">
+    </div>
+  </div>
+  </div>
+      
+      <div id="calendar-grid" class="calendar-grid">
+        <p class="msg">Construyendo calendario...</p>
+      </div>
+    </div>
+
+<div id="modal-acta" class="modal-serfor" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:1000; overflow-y:auto;">
+  <div style="background:white; width:95%; max-width:800px; margin:20px auto; padding:20px; border-radius:15px; font-family:sans-serif; position:relative;">
+    
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+      <h2 id="modal-titulo" style="color:#1a73e8; margin:0;">🎙️ Acta de Reunión</h2>
+      <button onclick="cerrarModalActa()" style="border:none; background:none; font-size:28px; cursor:pointer;">&times;</button>
+    </div>
+
+    <div style="display:flex; border-bottom:2px solid #eee; margin-bottom:15px;">
+      <button id="tab-trans" onclick="cambiarTab('trans')" style="flex:1; padding:10px; border:none; background:none; cursor:pointer; font-weight:bold; border-bottom:3px solid #1a73e8;">Transcripción</button>
+      <button id="tab-resumen" onclick="cambiarTab('resumen')" style="flex:1; padding:10px; border:none; background:none; cursor:pointer; font-weight:bold;">Resumen Ejecutivo</button>
+    </div>
+
+    <div id="content-trans">
+      <div id="controles-grabacion" style="text-align:center; background:#f8f9fa; padding:15px; border-radius:10px; margin-bottom:15px;">
+        <div id="cronometro" style="font-size:30px; font-weight:bold; color:#d93025;">00:00</div>
+        <p id="estado-texto" style="font-size:12px; color:#666; margin:5px 0;">Listo para iniciar</p>
+        
+        <div style="display:flex; gap:10px; justify-content:center;">
+          <button id="btn-start" onclick="gestionarGrabacion('iniciar')" style="padding:12px 25px; background:#1a73e8; color:white; border:none; border-radius:5px; cursor:pointer; font-weight:bold;">🔴 Iniciar</button>
+          <button id="btn-pause" onclick="gestionarGrabacion('pausar')" style="padding:12px 25px; background:#fbbc04; color:black; border:none; border-radius:5px; cursor:pointer; font-weight:bold; display:none;">⏸️ Pausar</button>
+          <button id="btn-resume" onclick="gestionarGrabacion('reanimar')" style="padding:12px 25px; background:#34a853; color:white; border:none; border-radius:5px; cursor:pointer; font-weight:bold; display:none;">▶️ Continuar</button>
+          <button id="btn-stop" onclick="gestionarGrabacion('detener')" style="padding:12px 25px; background:#d93025; color:white; border:none; border-radius:5px; cursor:pointer; font-weight:bold; display:none;">⏹️ Detener y Finalizar</button>
+        </div>
+      </div>
+      
+      <label><strong>Texto en Vivo / Transcripción Cruda:</strong></label>
+      <textarea id="texto-transcripcion" placeholder="La transcripción aparecerá aquí mientras hablas..." style="width:100%; height:250px; margin-top:10px; padding:10px; border-radius:8px; border:1px solid #ccc; font-size:14px;"></textarea>
+      
+      <div style="display:flex; gap:10px; margin-top:10px;">
+        <button id="btn-guardar-trans" onclick="guardarCambiosManuales()" style="padding:10px; background:#34a853; color:white; border:none; border-radius:5px; flex:1;">💾 Guardar Cambios</button>
+        <button onclick="descargarPDF('texto-transcripcion')" class="btn-export" style="padding:10px; background:#ea4335; color:white; border:none; border-radius:5px; flex:1; font-weight:bold;">📄 Descargar PDF</button>
+        <button onclick="copiarTexto('texto-transcripcion')" style="padding:10px; background:#eee; border:1px solid #ccc; border-radius:5px;">📋 Copiar</button>
+      </div>
+    </div>
+
+    <div id="content-resumen" style="display:none;">
+      <button id="btn-generar-resumen" onclick="generarResumenIA()" style="width:100%; padding:15px; background:#1a73e8; color:white; border:none; border-radius:8px; font-weight:bold; margin-bottom:15px; cursor:pointer;">✨ Generar Resumen con Inteligencia Artificial</button>
+      
+      <label><strong>Resumen Ejecutivo y Acuerdos:</strong></label>
+      <textarea id="texto-resumen" placeholder="Haz clic en Generar para obtener el análisis..." style="width:100%; height:300px; margin-top:10px; padding:10px; border-radius:8px; border:1px solid #ccc; font-size:14px;"></textarea>
+      
+      <div style="display:flex; gap:10px; margin-top:10px;">
+        <button id="btn-guardar-resumen" onclick="guardarCambiosManuales()" style="padding:10px; background:#34a853; color:white; border:none; border-radius:5px; flex:1;">💾 Guardar Resumen</button>
+        <button onclick="descargarPDF('texto-resumen')" class="btn-export" style="padding:10px; background:#ea4335; color:white; border:none; border-radius:5px; flex:1; font-weight:bold;">📄 Descargar PDF</button>
+        <button onclick="copiarTexto('texto-resumen')" style="padding:10px; background:#eee; border:1px solid #ccc; border-radius:5px;">📋 Copiar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="modal-crear" style="display: none;">
+  <div class="modal-content">
+    <h3>🚨 Nuevo Evento </h3>
+    
+    <label for="nuevo-titulo">Título del Evento</label>
+    <input type="text" id="nuevo-titulo" placeholder="Ej: Reunión de Campo SERFOR">
+    
+    <label for="nuevo-proyecto">Asignar Proyecto Institucional</label>
+    <select id="nuevo-proyecto">
+      <option value="">Cargando proyectos...</option>
+    </select>
+    
+    <label for="nueva-fecha">Fecha del Evento</label>
+    <input type="date" id="nueva-fecha">
+    
+    <div style="display: flex; gap: 15px;">
+      <div style="flex: 1;">
+        <label for="nueva-hora">Hora Inicio</label>
+        <input type="time" id="nueva-hora">
+      </div>
+      <div style="flex: 1;">
+        <label for="nueva-hora-fin">Hora Fin</label>
+        <input type="time" id="nueva-hora-fin">
+      </div>
+    </div>
+    
+    <div class="modal-footer" style="margin-top: 20px;">
+      <button class="btn-cancelar" onclick="cerrarModalCrear()">Cancelar</button>
+      <button class="btn-confirmar" onclick="guardarEventoEmergencia()">Crear Evento</button>
+    </div>
+  </div>
+</div>
+
+    <script>
+      let eventosCargados = [];
+      let mediaRecorder;
+      let finalizandoGrabacion = false; // Nos dirá si pulsamos "Detener" o solo "Pausa"      
+      let audioChunks = [];
+      let timerInterval;
+      let idEventoActivo = "";
+      let origenActual = "Manual"; // Por defecto es manual
+      let recognition;
+      let estaGrabando = false;
+      let eventoCerradoGlobal = false;
+      let segundos = 0;
+      let tInterval;
+      let localStream; // Nueva variable global para "sujetar" el micrófono
+      let intervaloAutoGuardado; // El "reloj" que contará los 15 minutos
+      let listaProyectosGlobal = [];
+      const TIEMPO_FRAGMENTO = 10 * 60 * 1000; // 5 minutos convertidos a milisegundos
+      let segundosPendientesPausa = null; // Para saber si el stop actual es una pausa
+      
+      let URL_WEB_APP = ""; // Se llenará dinámicamente tras el login
+
+      const URL_BACKEND = "TU_URL_DE_DESPLIEGUE_AQUÍ"; // La obtendrás al publicar
+
+async function llamarBackend(accion, datos = {}) {
+  const payload = {
+    accion: accion,
+    ...datos
+  };
+
+  const response = await fetch(URL_BACKEND, {
+    method: 'POST',
+    mode: 'no-cors', // Importante para evitar bloqueos de navegador
+    body: JSON.stringify(payload)
+  });
+  
+  // Nota: Con 'no-cors' no podemos leer la respuesta directamente de forma fácil, 
+  // pero para subir audio y enviar datos es suficiente. 
+  // Si necesitas leer datos (como la lista de eventos), usaremos un túnel proxy o CORS habilitado.
+}
+
+    
+
+
+async function cargarDatos() {
+  // Validación de seguridad
+    if (!URL_WEB_APP) {
+        console.warn("Intento de carga sin URL de Backend definida.");
+        return;
+    }
+  
+  const btn = document.querySelector('.btn-refresh');
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '⏳ Sincronizando...';
+  }
+  document.getElementById('calendar-grid').innerHTML = '<p class="msg">Conectando con SERFOR...</p>';
+
+  // CONSTRUIMOS LA URL CON EL PARÁMETRO
+  const urlFinal = URL_WEB_APP + "?accion=obtenerEventos";
+
+  try {
+    // IMPORTANTE: Al ser GET no hay errores de CORS en Apps Script
+    const respuesta = await fetch(urlFinal);
+    const eventos = await respuesta.json();
+
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '🔄 Sincronizar';
+    }
+
+    // Dibujamos los cuadritos de los eventos
+    procesarEventos(eventos);
+
+  } catch (error) {
+    console.error("Error de conexión:", error);
+    document.getElementById('calendar-grid').innerHTML = 
+      '<p class="msg" style="color:red;">Error al cargar datos. Refresque la página.</p>';
+  }
+}
+      
+      function procesarEventos(eventos) {
+        eventosCargados = eventos;
+        renderizarCalendario(eventos);
+      }
+      
+      // ... (cargarDatos y procesarEventos se mantienen igual)
+
+      function renderizarCalendario(eventos) {
+      const contenedor = document.getElementById('calendar-grid');
+      if (!eventos || eventos.length === 0) {
+        contenedor.innerHTML = '<div style="grid-column: span 7; padding: 50px; text-align: center;">✅ Sin eventos pendientes.</div>';
+        return;
+      }
+
+      const eventosPorFecha = {};
+      eventos.forEach(ev => {
+        const fechaKey = ev.fecha.split(' ')[0];
+        if (!eventosPorFecha[fechaKey]) eventosPorFecha[fechaKey] = [];
+        eventosPorFecha[fechaKey].push(ev);
+      });
+
+      const fechasOrdenadas = Object.keys(eventosPorFecha).sort((a, b) => parseDate(a) - parseDate(b));
+      const fechaInicio = parseDate(fechasOrdenadas[0]);
+      const fechaFin = parseDate(fechasOrdenadas[fechasOrdenadas.length - 1]);
+
+      let fechaActual = new Date(fechaInicio);
+      fechaActual.setDate(fechaActual.getDate() - fechaActual.getDay());
+
+      let html = '';
+      const diasSemana = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+      diasSemana.forEach(dia => html += `<div class="calendar-header">${dia}</div>`);
+
+  while (fechaActual <= fechaFin || fechaActual.getDay() !== 0) {
+    const diaStr = formatDate(fechaActual);
+    const esHoy = new Date().toDateString() === fechaActual.toDateString();
+    const eventosDelDia = eventosPorFecha[diaStr] || [];
+
+    html += `
+      <div class="calendar-day ${esHoy ? 'hoy' : ''}">
+        <span class="numero-dia">${fechaActual.getDate()} / ${fechaActual.getMonth() + 1}</span>
+        <div class="event-list">
+          ${eventosDelDia.map(ev => `
+            <div class="mini-card" data-titulo="${ev.titulo.toLowerCase()}">
+              <div class="hora-mini">${ev.fecha.split(' ')[1]}</div>
+              <div class="titulo-mini">${ev.titulo}</div>
+              
+              <div class="estado-container">
+                <label style="font-size:10px;">Estado:</label>
+                <select id="estado-${ev.id}" onchange="actualizarEstado('${ev.id}')" 
+                        style="background: ${ev.estado === 'Abierto' ? '#e6f4ea' : '#fce8e6'}; border-radius:4px; border:1px solid #ccc;">
+                  <option value="Cerrado" ${ev.estado !== 'Abierto' ? 'selected' : ''}>🔴 Cerrado</option>
+                  <option value="Abierto" ${ev.estado === 'Abierto' ? 'selected' : ''}>🟢 Abierto</option>
+                </select>
+              </div>
+
+              <select id="select-${ev.id}">
+                <option value="">Proyecto...</option>
+                ${ev.proyectos.map(p => `<option value="${p}" ${ev.proyectoElegido === p ? 'selected' : ''}>${p}</option>`).join('')}
+              </select>                    
+              
+              <div class="nav-btns-mini">         
+                <button class="btn-mini-save" onclick="guardarProyecto(event, '${ev.id}')" title="Guardar Proyecto">💾 Guardar Proyecto</button>
+                <button class="btn-qr" onclick="verQR('${ev.id}', '${ev.titulo}')" title="Generar QR">📱 QR Asistencia</button>
+                <button class="btn-copy-link" onclick="copiarEnlaceAsistencia('${ev.id}')" title="Copiar Enlace">🔗 Enlace Asistencia</button>    
+                <button class="btn-pdf-asist" onclick="descargarPDFAsistencia('${ev.id}', '${ev.titulo}')" title="Descargar Lista de Asistencia">📄 Lista Asistencia</button>
+                <button class="btn-mic" onclick="abrirGrabador('${ev.id}', '${ev.titulo}')" title="Grabar Evento">🎙️ Grabar Reunión</button>             
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+    fechaActual.setDate(fechaActual.getDate() + 1);
+  }
+  contenedor.innerHTML = html;
+}
+
+  // ... (el resto de funciones: parseDate, formatDate, filtrarEventos, guardarProyecto se mantienen igual)
+
+      function parseDate(str) {
+        const d = str.split('/');
+        return new Date(d[2], d[1]-1, d[0]);
+      }
+
+      function formatDate(date) {
+        return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
+      }
+
+      function filtrarEventos() {
+        const busqueda = document.getElementById('buscador').value.toLowerCase();
+        document.querySelectorAll('.mini-card').forEach(card => {
+          const match = card.getAttribute('data-titulo').includes(busqueda);
+          card.style.display = match ? 'block' : 'none';
+          card.style.border = match && busqueda !== "" ? '2px solid #1a73e8' : 'none';
+        });
+      }
+
+      function guardarProyecto(e, idEvento) {
+        e.stopPropagation();
+        const proyecto = document.getElementById('select-' + idEvento).value;
+        if (!proyecto) return alert('Selecciona un proyecto');
+        
+        google.script.run.withSuccessHandler(() => {
+          cargarDatos();
+        }).asignarProyectoAEvento(idEvento, proyecto);
+      }
+
+      function verQR(id, titulo) {
+  // 1. Generamos la URL de asistencia usando nuestra constante
+  const urlAsistencia = URL_WEB_APP + "?id=" + id;
+ 
+  // 2. Generamos el QR con el servicio externo
+  const qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=" + encodeURIComponent(urlAsistencia);
+ 
+  // 3. Abrimos la ventana emergente
+  const win = window.open("", "QR", "width=400,height=500");
+ 
+  win.document.write(`
+    <div style="text-align:center; font-family:sans-serif; padding:20px;">
+      <h3>QR de Asistencia</h3>
+      <p><strong>Evento:</strong> ${titulo}</p>
+      <img src="${qrUrl}" style="border:10px solid white; box-shadow:0 0 10px rgba(0,0,0,0.2); width:250px;">
+      <p style="font-size:12px; color:gray;">Escanee para registrarse</p>
+      <div style="margin-top:15px;">
+        <button onclick="window.print()" style="padding:10px; cursor:pointer; background:#4CAF50; color:white; border:none; border-radius:4px;">Imprimir QR</button>
+        <button onclick="window.close()" style="padding:10px; cursor:pointer; background:#f44336; color:white; border:none; border-radius:4px;">Cerrar</button>
+      </div>
+    </div>
+  `);
+  win.document.close(); // Buena práctica cerrar el stream del documento
+}
+
+      async function actualizarEstado(idEvento) {
+  const selector = document.getElementById('estado-' + idEvento);
+  const nuevoEstado = selector.value;
+ 
+  // Bloqueamos el selector momentáneamente para evitar doble clic
+  selector.disabled = true;
+
+  try {
+    const respuesta = await fetch(URL_WEB_APP, {
+      method: 'POST',
+      body: JSON.stringify({
+        accion: 'cambiarEstadoEvento',
+        idEvento: idEvento,
+        nuevoEstado: nuevoEstado
+      })
+    });
+
+    const res = await respuesta.json();
+    console.log("Respuesta de cambio de estado:", res);
+
+    // Refrescamos la agenda para que los colores se actualicen
+    await cargarDatos();
+
+  } catch (error) {
+    console.error("Error al actualizar estado:", error);
+    alert("No se pudo actualizar el estado. Verifica tu conexión.");
+  } finally {
+    selector.disabled = false;
+  }
+}
+
+ async function abrirGrabador(id, titulo) {
+  idEventoActivo = id;
+  
+  // Limpieza previa
+  document.getElementById('texto-transcripcion').value = "Cargando datos desde Google...";
+  document.getElementById('texto-resumen').value = "";
+  document.getElementById('modal-titulo').innerText = "Acta: " + titulo;
+  document.getElementById('modal-acta').style.display = 'block';
+
+  // --- CAMBIO CLAVE: Usamos fetch en lugar de google.script.run ---
+  try {
+    const urlFinal = URL_WEB_APP + "?accion=obtenerDatosActa&id=" + id;
+    const respuesta = await fetch(urlFinal);
+    const data = await respuesta.json();
+
+    // Rellenamos los campos con lo que devolvió Google
+    document.getElementById('texto-transcripcion').value = data.transcripcion || "";
+    document.getElementById('texto-resumen').value = data.resumen || "";
+
+    // Recuperar el tiempo del cronómetro
+    segundos = data.segundosAcumulados || 0; 
+    document.getElementById('cronometro').innerText = formatearTiempo(segundos);
+    
+    // Aplicar bloqueos si el acta está cerrada
+    bloquearEdicion(data.estado); 
+
+  } catch (error) {
+    console.error("Error al obtener datos del acta:", error);
+    document.getElementById('texto-transcripcion').value = "Error al conectar con el servidor.";
+  }
+}
+      
+    function cerrarModalActa() {
+      if(estaGrabando) {
+        alert("Por favor, detén o pausa la grabación antes de cerrar.");
+        return;
+      }
+      
+      // --- NUEVA MEJORA SEGURIDAD ---
+      // Detenemos el temporizador de auto-guardado para que no interfiera con otros eventos
+      clearInterval(intervaloAutoGuardado); 
+      
+      // Reseteamos variables de control para que el próximo modal empiece de cero
+      finalizandoGrabacion = false; 
+      segundos = 0;
+      audioChunks = []; // Limpiamos cualquier residuo de memoria
+      
+      document.getElementById('modal-acta').style.display = 'none';
+      document.getElementById('cronometro').innerText = "00:00";
+      
+      // Limpiar los campos de texto para que no se vea el texto anterior un segundo
+      document.getElementById('texto-transcripcion').value = "";
+      document.getElementById('texto-resumen').value = "";
+    }
+
+    function iniciarGrabacion() {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        alert("Tu navegador no soporta la grabación de audio o requiere una conexión segura (HTTPS).");
+        return;
+      }
+
+      navigator.mediaDevices.getUserMedia({ audio: true })
+        .then(stream => {
+          mediaRecorder = new MediaRecorder(stream);
+          mediaRecorder.start();
+          audioChunks = [];
+
+          mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+          
+          // Cambios en la interfaz (UI)
+          document.getElementById('btn-start').style.display = 'none';
+          document.getElementById('btn-stop').style.display = 'inline-block';
+          
+          // Cronómetro
+          let segundos = 0;
+          if (timerInterval) clearInterval(timerInterval); // Limpiar si había uno previo
+          timerInterval = setInterval(() => {
+            segundos++;
+            let m = Math.floor(segundos / 60);
+            let s = segundos % 60;
+            document.getElementById('cronometro').innerText = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+          }, 1000);
+        })
+        .catch(err => {
+          console.error("Error detallado:", err);
+          // Mensajes específicos para el usuario en el celular
+          if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+            alert("⚠️ Acceso denegado: Por favor, activa el permiso de micrófono en la configuración de tu navegador (clic en el candado de la URL).");
+          } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+            alert("❌ No se detectó un micrófono disponible en este dispositivo.");
+          } else {
+            alert("🚨 Error al acceder al micrófono: Asegúrate de estar usando HTTPS y de no tener otra aplicación usando el micro.");
+          }
+        });
+    }
+
+    function detenerGrabacion() {
+      mediaRecorder.stop();
+      clearInterval(timerInterval);
+      document.getElementById('btn-stop').innerText = "⌛ Subiendo audio...";
+      document.getElementById('btn-stop').disabled = true;
+
+      mediaRecorder.onstop = () => {
+        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+        const reader = new FileReader();
+        reader.readAsDataURL(audioBlob);
+        reader.onloadend = () => {
+          const base64data = reader.result.split(',')[1];
+          
+          google.script.run
+            .withFailureHandler(err => {
+              alert("Error al subir: " + err);
+              document.getElementById('btn-stop').innerText = "❌ Falló";
+              document.getElementById('btn-stop').disabled = false;
+            })
+            .withSuccessHandler(resDrive => {
+              if (resDrive.success) {
+                document.getElementById('btn-stop').innerText = "🧠 IA Procesando...";
+                
+                google.script.run
+                  .withFailureHandler(err => {
+                    alert("Error en IA: " + err);
+                    document.getElementById('btn-stop').innerText = "❌ Error IA";
+                    document.getElementById('btn-stop').disabled = false;
+                  })
+                  .withSuccessHandler(resIA => {
+                    if (resIA.status === "success") {
+                      document.getElementById('btn-stop').innerText = "✅ Listo";
+                      origenActual = "Grabación"; // <-- IMPORTANTE: activamos el origen
+                      document.getElementById('texto-resumen').value = 
+                        "RESUMEN:\n" + resIA.data.resumen + 
+                        "\n\nACUERDOS:\n" + resIA.data.acuerdos + 
+                        "\n\n--- TRANSCRIPCIÓN ---\n" + resIA.data.transcripcion;
+                      alert("Procesamiento terminado.");
+                    } else {
+                      alert("Gemini respondió con error: " + resIA.message);
+                    }
+                  }).procesarAudioConGemini(resDrive.fileId, idEventoActivo);
+              }
+            }).subirAudioADrive(base64data, idEventoActivo);
+        };
+      };
+    }
+
+    function guardarActaFinal(origen) {
+      const resumen = document.getElementById('texto-resumen').value;
+      if(!resumen) return alert("Escribe un resumen antes de guardar");
+
+      const datos = {
+        idEvento: idEventoActivo,
+        origen: origen,
+        transcripcion: "Pendiente procesar audio",
+        resumen: resumen
+      };
+
+      google.script.run.withSuccessHandler(() => {
+        alert("¡Acta guardada exitosamente!");
+        cerrarModalActa();
+      }).guardarActaProcesada(datos);
+    }
+
+    function copiarAlPortapapeles() {
+      const texto = document.getElementById('texto-resumen').value;
+      navigator.clipboard.writeText(texto).then(() => alert("Copiado al portapapeles"));
+    }
+
+async function descargarPDF(idElemento) {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  const texto = document.getElementById(idElemento).value;
+  const tituloEvento = document.getElementById('modal-titulo').innerText;
+  
+  const tipoDocumento = idElemento.includes('trans') ? "TRANSCRIPCIÓN" : "RESUMEN";
+
+  if (!texto) {
+    alert("No hay contenido para generar el PDF");
+    return;
+  }
+
+  // --- Encabezado de la primera página ---
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(18);
+  doc.text("ACTA DE REUNIÓN - " + tipoDocumento, 105, 20, { align: "center" });
+  
+  doc.setFontSize(12);
+  doc.text(tituloEvento, 20, 35);
+  doc.setFont("helvetica", "normal");
+  doc.text("Fecha de descarga: " + new Date().toLocaleDateString(), 20, 42);
+  
+  doc.line(20, 45, 190, 45); // Línea divisoria
+
+  // --- Configuración de cuerpo de texto y saltos de página ---
+  const margenIzquierdo = 20;
+  const margenSuperiorInicial = 55;
+  const limiteInferior = 275; // Punto donde debe saltar de página (A4 mide 297mm)
+  const interlineado = 7;
+  let cursorY = margenSuperiorInicial;
+
+  doc.setFontSize(11);
+  const lineas = doc.splitTextToSize(texto, 170);
+
+  lineas.forEach(linea => {
+    // Verificar si la siguiente línea cabe en la página actual
+    if (cursorY > limiteInferior) {
+      doc.addPage();
+      cursorY = 20; // Reiniciar cursor en la nueva página
+    }
+    
+    doc.text(linea, margenIzquierdo, cursorY);
+    cursorY += interlineado;
+  });
+
+  // Descarga
+  doc.save(`${tipoDocumento}_${idEventoActivo}.pdf`);
+}
+
+    // Cuando la IA termina con éxito, cambiamos el origen automáticamente
+    // (Agrega esta línea dentro del successHandler de tu función procesarAudioConGemini)
+    // origenActual = "Grabación"; 
+
+    function prepararGuardado() {
+      // Si el textarea tiene contenido pero no se activó la IA, se guarda como Manual
+      // Si la IA se activó, se guardará como Grabación
+      guardarActaFinal(origenActual);
+    }
+
+// NUEVO ULTIMO
+
+// Configurar reconocimiento de voz (Web Speech API)
+if ('webkitSpeechRecognition' in window) {
+  recognition = new webkitSpeechRecognition();
+  recognition.continuous = true;
+  recognition.interimResults = true; // ESTO ES CLAVE para ver el texto mientras hablas
+  recognition.lang = 'es-PE';
+
+  recognition.onresult = (event) => {
+    let interimTranscript = '';
+    let finalTranscript = '';
+
+    for (let i = event.resultIndex; i < event.results.length; ++i) {
+      if (event.results[i].isFinal) {
+        finalTranscript += event.results[i][0].transcript;
+      } else {
+        interimTranscript += event.results[i][0].transcript;
+      }
+    }
+    // Actualizamos el área de texto inmediatamente
+    const textArea = document.getElementById('texto-transcripcion');
+    if (interimTranscript !== '') {
+       textArea.value = (textArea.value + " " + interimTranscript).trim();
+    }
+  };
+
+  recognition.onerror = (event) => {
+    console.error("Error de reconocimiento:", event.error);
+    // Si se desconecta por silencio, lo reiniciamos si seguimos grabando
+    if (event.error === 'no-speech' && estaGrabando) {
+      try { recognition.start(); } catch(e) {}
+    }
+  };
+}
+
+function bloquearEdicion(estado) {
+  // Guardamos en global para otras funciones
+  eventoCerradoGlobal = (estado === "Finalizada");
+
+  const btnStart = document.getElementById('btn-start');
+  const btnPause = document.getElementById('btn-pause'); // NUEVO: Referencia a Pausa
+  const btnResume = document.getElementById('btn-resume'); // NUEVO: Referencia a Reanudar
+  const btnStop = document.getElementById('btn-stop'); // NUEVO: Referencia a Detener
+  
+  const btnGuardarTrans = document.getElementById('btn-guardar-trans');
+  const btnGuardarResumen = document.getElementById('btn-guardar-resumen');
+  const btnGenerarResumen = document.getElementById('btn-generar-resumen');
+  const txtTrans = document.getElementById('texto-transcripcion');
+  const txtRes = document.getElementById('texto-resumen');
+  const contenedorGrabacion = document.getElementById('controles-grabacion');
+  const estadoTexto = document.getElementById('estado-texto');
+
+  // MOMENTO 1: Nuevo / Sin grabar (Estado "Abierta" o vacío)
+  if (!estado || estado === "Abierta" || estado === "" || estado === "Almacenada"){
+    contenedorGrabacion.style.display = 'block';
+    
+    // RESET DE BOTONES DE GRABACIÓN
+    btnStart.disabled = false;
+    btnStart.innerText = "🔴 Iniciar Grabación";
+    btnStart.style.opacity = "1";
+    btnStart.style.display = 'inline-block'; // Asegurar que sea vea el de Iniciar
+
+    btnStop.disabled = false; // ¡AQUÍ ESTABA EL ERROR! Reactivamos Detener
+    btnStop.style.opacity = "1";
+    btnStop.style.display = 'none'; // Oculto hasta que empiece la grabación
+
+    btnPause.style.display = 'none'; // Oculto hasta que empiece la grabación
+    btnResume.style.display = 'none'; // Oculto hasta que se pause
+
+    txtTrans.readOnly = false;
+    txtRes.readOnly = false;
+    btnGuardarTrans.disabled = false;
+    btnGuardarResumen.disabled = false;
+    btnGenerarResumen.disabled = false;
+    
+    estadoTexto.innerText = "Listo para iniciar";
+    estadoTexto.style.color = "green";
+  } 
+
+  // MOMENTO 1.5: Pausada (Nueva lógica para persistencia)
+  else if (estado === "Pausada" || estado === "Almacenada") {
+    contenedorGrabacion.style.display = 'block';
+    
+    // Configuramos los botones para retomar la grabación
+    btnStart.style.display = 'none';      // Ocultamos Iniciar
+    btnPause.style.display = 'none';      // Ocultamos Pausa (porque ya está pausado)
+    btnResume.style.display = 'inline-block'; // MOSTRAMOS REANUDAR
+    btnStop.style.display = 'inline-block';   // MOSTRAMOS DETENER (por si quiere finalizar ya)
+    
+    btnResume.disabled = false;
+    btnStop.disabled = false;
+    // --- ESTA ES LA LÍNEA QUE FALTA ---
+    btnStop.style.opacity = "1"; 
+    // ---------------------------------
+
+    txtTrans.readOnly = false;
+    txtRes.readOnly = false;
+    btnGuardarTrans.disabled = false;
+    btnGuardarResumen.disabled = false;
+    btnGenerarResumen.disabled = false;
+    
+    estadoTexto.innerText = "⏸️ Grabación Pausada - Lista para continuar";
+    estadoTexto.style.color = "orange";
+  }
+  
+  // MOMENTO 2: Transcrita o Resumida
+  else if (estado === "Transcrita" || estado === "Resumida") {
+    contenedorGrabacion.style.display = 'block';
+    btnStart.disabled = true;
+    btnStart.innerText = "🚫 Grabación Realizada";
+    btnStart.style.opacity = "0.5";
+    btnStart.style.display = 'inline-block';
+
+    btnStop.style.display = 'none'; // No se necesita si ya está transcrita
+    btnPause.style.display = 'none';
+    btnResume.style.display = 'none';
+    
+    txtTrans.readOnly = false;
+    txtRes.readOnly = false;
+    btnGuardarTrans.disabled = false;
+    btnGuardarResumen.disabled = false;
+    btnGenerarResumen.disabled = false;
+    
+    estadoTexto.innerText = "Estado: " + estado;
+    estadoTexto.style.color = "#1a73e8";
+  } 
+  
+  // MOMENTO 3: Finalizada (Cerrada)
+  else if (estado === "Finalizada") {
+    contenedorGrabacion.style.display = 'none';
+    
+    txtTrans.readOnly = true;
+    txtRes.readOnly = true;
+    btnGuardarTrans.disabled = true;
+    btnGuardarResumen.disabled = true;
+    btnGenerarResumen.disabled = true;
+    
+    estadoTexto.innerText = "MODO LECTURA: Acta Finalizada";
+    estadoTexto.style.color = "red";
+  }
+}
+
+function cambiarTab(tipo) {
+  document.getElementById('content-trans').style.display = tipo === 'trans' ? 'block' : 'none';
+  document.getElementById('content-resumen').style.display = tipo === 'resumen' ? 'block' : 'none';
+  
+  document.getElementById('tab-trans').style.borderBottom = tipo === 'trans' ? '3px solid #1a73e8' : 'none';
+  document.getElementById('tab-resumen').style.borderBottom = tipo === 'resumen' ? '3px solid #1a73e8' : 'none';
+}
+
+function gestionarGrabacion(accion) {
+  const btnStart = document.getElementById('btn-start');
+  const btnPause = document.getElementById('btn-pause');
+  const btnResume = document.getElementById('btn-resume');
+  const btnStop = document.getElementById('btn-stop');
+  const estadoTexto = document.getElementById('estado-texto');
+
+  if (accion === 'iniciar' || accion === 'reanimar') {
+    finalizandoGrabacion = false; 
+    
+    if (accion === 'iniciar') {
+      audioChunks = [];
+      segundos = 0; // Solo si es inicio total, empezamos de cero
+      document.getElementById('cronometro').innerText = "00:00";
+    }
+
+    const constraints = { 
+      audio: { 
+        echoCancellation: true, 
+        noiseSuppression: true,
+        autoGainControl: true 
+      } 
+    };
+
+    navigator.mediaDevices.getUserMedia(constraints).then(stream => {
+      localStream = stream;
+      mediaRecorder = new MediaRecorder(stream);
+      
+      mediaRecorder.ondataavailable = e => {
+        if (e.data.size > 0) {
+          audioChunks.push(e.data);
+        }
+      };
+
+      mediaRecorder.onstop = () => {
+
+        // Capturamos el valor de la pausa y reseteamos la bandera inmediatamente
+      const segundosAEnviar = segundosPendientesPausa;
+      segundosPendientesPausa = null;
+
+      // Guardamos el estado de 'finalizandoGrabacion' en una constante local 
+      // para que no cambie mientras el lector de archivos procesa el audio
+      const esElFinal = finalizandoGrabacion;                      
+
+        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+        audioChunks = [];
+
+        const reader = new FileReader();
+        reader.readAsDataURL(audioBlob);
+reader.onloadend = async () => {
+  const base64 = reader.result.split(',')[1];
+  const estadoTexto = document.getElementById('estado-texto');
+  
+  // Capturamos el estado de 'finalizandoGrabacion' justo ahora
+  const esElFinal = finalizandoGrabacion;
+
+  try {
+    // 1. PRIMERA LLAMADA: Subir el audio a Drive
+    console.log("📤 Subiendo fragmento de audio a Drive...");
+    const respuestaDrive = await fetch(URL_WEB_APP, {
+      method: 'POST',
+      body: JSON.stringify({
+        accion: 'subirAudio',
+        base64: base64,
+        idEvento: idEventoActivo
+      })
+    });
+    const resDrive = await respuestaDrive.json();
+
+    if (resDrive.success) {
+      console.log("🚀 Audio en Drive: " + resDrive.fileId + ". Enviando a Gemini...");
+      
+      // Actualizamos UI si es el final
+      if (esElFinal) {
+        estadoTexto.innerText = "⌛ Generando transcripción final... Por favor espera.";
+        estadoTexto.style.color = "blue";
+      } else if (!estaGrabando) {
+        estadoTexto.innerText = "⏸️ Pausado - Procesando en la nube...";
+        estadoTexto.style.color = "orange";
+      }
+
+      // 2. SEGUNDA LLAMADA: Procesar con la IA (Gemini)
+      const respuestaIA = await fetch(URL_WEB_APP, {
+        method: 'POST',
+        body: JSON.stringify({
+          accion: 'procesarTranscripcion',
+          fileId: resDrive.fileId,
+          idEvento: idEventoActivo,
+          segundos: segundosAEnviar,
+          esFinal: esElFinal
+        })
+      });
+      const resIA = await respuestaIA.json();
+
+      console.log("Sincronización completa. Segundos en BD:", resIA.segundosGuardados);
+
+      if (resIA.status === "success") {
+        // Actualizamos el cuadro de texto con la transcripción que devolvió la IA
+        document.getElementById('texto-transcripcion').value = resIA.transcripcion;
+        
+        if (esElFinal) {
+          estadoTexto.innerText = "✅ Transcripción Finalizada";
+          estadoTexto.style.color = "blue";
+          alert("¡Listo! El acta ha sido actualizada con el último fragmento.");
+          
+          // Refrescamos la agenda para ver los cambios
+          if (typeof cargarDatos === 'function') cargarDatos();
+        } else if (!estaGrabando) {
+          estadoTexto.innerText = "⏸️ Pausado - Fragmento enviado a proceso";
+          estadoTexto.style.color = "orange";
+        }
+      } else {
+        console.error("Error IA:", resIA.message);
+        alert("La IA falló: " + resIA.message);
+      }
+
+    } else {
+      alert("Error al subir fragmento a Drive: " + resDrive.error);
+    }
+  } catch (error) {
+    console.error("Error en el flujo de comunicación:", error);
+    estadoTexto.innerText = "❌ Error de conexión";
+    alert("No se pudo conectar con Google para procesar el audio.");
+  }
+};
+      };
+
+      mediaRecorder.start(1000); 
+      
+      //if (recognition) {
+      //  try { recognition.start(); } catch(e) { console.warn("Recognition ya iniciado"); }
+      //}
+      
+      estaGrabando = true;
+      iniciarCronometro();
+
+      // --- INICIO DE LÓGICA AUTO-GUARDADO (Cada 15 min) ---
+      clearInterval(intervaloAutoGuardado); 
+      intervaloAutoGuardado = setInterval(() => {
+        if (mediaRecorder && mediaRecorder.state === "recording") {
+          console.log("Auto-corte de seguridad: Sincronizando tramo de 15 min...");
+          // Detenemos el grabador para que dispare el .onstop y suba el audio acumulado
+          mediaRecorder.stop(); 
+          // Reiniciamos inmediatamente la grabación para el siguiente tramo
+          mediaRecorder.start(1000); 
+        }
+      }, TIEMPO_FRAGMENTO);
+      // -----------------------------------------------------
+
+      btnStart.style.display = 'none';
+      btnResume.style.display = 'none';
+      btnPause.style.display = 'inline-block';
+      btnStop.style.display = 'inline-block';
+      estadoTexto.innerText = "🔴 Grabando en vivo...";
+      estadoTexto.style.color = "red";
+      
+    }).catch(err => {
+      console.error("Error micro:", err);
+      alert("No se pudo acceder al micrófono.");
+    });
+  } 
+  
+
+  else if (accion === 'pausar') {
+    clearInterval(intervaloAutoGuardado);
+    estaGrabando = false;
+
+    // GUARDAMOS LOS SEGUNDOS EN LA VARIABLE TEMPORAL
+    segundosPendientesPausa = segundos;
+
+    finalizandoGrabacion = false; // Nos aseguramos que sea false
+    detenerCronometro();
+
+    if (mediaRecorder && mediaRecorder.state === "recording") {
+      mediaRecorder.stop(); // Esto disparará el onstop para procesar lo que iba hasta ahora
+    }
+    
+    if (recognition) recognition.stop();
+
+    // !!! IMPORTANTE: NO DETENER EL localStream AQUÍ !!!
+    // Si detienes el localStream, matas la capacidad de reanudar.
+
+    // PERSISTENCIA: Avisamos a la hoja de cálculo el tiempo exacto
+    
+    btnPause.style.display = 'none';
+    btnResume.style.display = 'inline-block';
+    
+    estadoTexto.innerText = "⌛ Pausado - Sincronizando fragmento...";
+    estadoTexto.style.color = "orange";
+    
+    // Solo guardamos los textos actuales sin disparar el cierre del acta
+    guardarCambiosManuales(false); 
+  }
+  
+  else if (accion === 'detener') {
+    if(confirm("¿Estás seguro de finalizar la grabación?")){
+      clearInterval(intervaloAutoGuardado); // Detener el reloj de auto-guardado
+
+      // IMPORTANTE: Capturamos los segundos finales para mandarlos a la base de datos
+      segundosPendientesPausa = segundos;
+
+      finalizandoGrabacion = true; 
+      estaGrabando = false;
+      detenerCronometro();
+
+      // 2. CASO A: Si el grabador está activo, lo paramos (esto disparará onstop)
+        if (mediaRecorder && mediaRecorder.state !== "inactive") {
+            mediaRecorder.stop(); 
+        } 
+        // 3. CASO B: Si ya estaba inactivo (estábamos en PAUSA)
+        else {
+            console.log("Ya estaba pausado. Finalizando directamente...");
+            // Llamamos a una función manual para cerrar el acta sin esperar al onstop
+            finalizarActaDirecto(); 
+        }
+
+      if (recognition) recognition.stop();
+
+      if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+      }
+      
+      btnPause.style.display = 'none';
+      btnResume.style.display = 'none';
+      btnStart.style.display = 'inline-block';
+      btnStart.disabled = true;
+      btnStart.style.opacity = "0.5";
+      btnStart.innerText = "🔴 Grabación Finalizada";
+      btnStop.disabled = true;
+      btnStop.style.opacity = "0.5";
+      
+      estadoTexto.innerText = "⌛ Sincronizando parte final...";
+    }
+  }
+}
+
+async function generarResumenIA() {
+  const btn = document.getElementById('btn-generar-resumen');
+  const estadoTexto = document.getElementById('estado-texto');
+ 
+  btn.innerText = "⌛ Procesando con Gemini...";
+  btn.disabled = true;
+  estadoTexto.innerText = "IA: Analizando transcripción y redactando resumen...";
+
+  try {
+    const respuesta = await fetch(URL_WEB_APP, {
+      method: 'POST',
+      body: JSON.stringify({
+        accion: 'generarResumenConGemini',
+        idEvento: idEventoActivo
+      })
+    });
+
+    const res = await respuesta.json();
+
+    btn.innerText = "✨ Generar Resumen con Inteligencia Artificial";
+    btn.disabled = false;
+
+    if (res.status === "success") {
+      document.getElementById('texto-resumen').value = res.resumen;
+      estadoTexto.innerText = "✅ Resumen generado y guardado";
+     
+      // Sincronizamos (Asegúrate que guardarCambiosManuales también sea async)
+      guardarCambiosManuales(false);
+      cambiarTab('resumen');
+    } else {
+      estadoTexto.innerText = "❌ Error en resumen";
+      alert("Error: " + res.message);
+    }
+  } catch (error) {
+    console.error("Error en resumen IA:", error);
+    btn.innerText = "✨ Reintentar Generar Resumen";
+    btn.disabled = false;
+    estadoTexto.innerText = "❌ Error de conexión";
+  }
+}
+
+
+async function guardarCambiosManuales(notificar = true) {
+  const resumen = document.getElementById('texto-resumen').value;
+  const tempEstado = document.getElementById('estado-texto').innerText;
+  document.getElementById('estado-texto').innerText = "💾 Sincronizando Resumen...";
+
+  try {
+    // Usamos fetch hacia el doPost de Google
+    const respuesta = await fetch(URL_WEB_APP, {
+      method: 'POST',
+      body: JSON.stringify({
+        accion: 'guardarCambiosEnHoja',
+        idEvento: idEventoActivo,
+        trans: null, // No tocamos la transcripción
+        resumen: resumen,
+        tipo: "Manual"
+      })
+    });
+
+    const res = await respuesta.json();
+    
+    document.getElementById('estado-texto').innerText = "✅ Resumen guardado";
+    if(notificar) alert("Cambios guardados correctamente.");
+    
+    setTimeout(() => {
+      document.getElementById('estado-texto').innerText = tempEstado;
+    }, 3000);
+
+  } catch (error) {
+    console.error("Error al guardar:", error);
+    document.getElementById('estado-texto').innerText = "❌ Error al guardar";
+  }
+}
+
+
+function copiarTexto(id) {
+  const texto = document.getElementById(id).value;
+  if(!texto) return alert("Nada que copiar");
+  navigator.clipboard.writeText(texto).then(() => alert("Copiado al portapapeles"));
+}
+
+function iniciarCronometro() {
+  tInterval = setInterval(() => {
+    segundos++;
+    let m = Math.floor(segundos / 60);
+    let s = segundos % 60;
+    document.getElementById('cronometro').innerText = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  }, 1000);
+}
+
+function detenerCronometro() { clearInterval(tInterval); }
+
+// Función para generar la URL (la centralizamos para que ambas funciones la usen igual)
+function obtenerUrlAsistencia(id) {
+  const urlBase = "<?!= ScriptApp.getService().getUrl() ?>";
+  return urlBase + "?id=" + id;
+}
+
+// NUEVA FUNCIÓN: Para copiar al portapapeles directamente
+
+
+function copiarEnlaceAsistencia(id) {
+  // 1. Construimos la URL usando la constante que definimos para GitHub
+  // Esto reemplaza la antigua lógica de 'obtenerUrlAsistencia' que fallaba
+  const urlAsistencia = URL_WEB_APP + "?id=" + id;
+ 
+  // 2. Intentamos copiar al portapapeles con la API moderna
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(urlAsistencia).then(() => {
+       // CAMBIO AQUÍ: Usamos alert en lugar de la función inexistente
+      alert("✅ Enlace de asistencia copiado. Ya puedes pegarlo en WhatsApp.");
+    }).catch(err => {
+      console.error('Error al copiar: ', err);
+      fallbackCopiarEnlace(urlAsistencia);
+    });
+  } else {
+    // 3. Si el navegador es antiguo o bloquea la API, usamos el método tradicional
+    fallbackCopiarEnlace(urlAsistencia);
+  }
+}
+
+// Función auxiliar para una mejor experiencia de usuario
+function fallbackCopiarEnlace(texto) {
+  const textArea = document.createElement("textarea");
+  textArea.value = texto;
+  // Aseguramos que no se vea en pantalla mientras se procesa
+  textArea.style.position = "fixed";
+  textArea.style.left = "-9999px";
+  textArea.style.top = "0";
+  document.body.appendChild(textArea);
+  textArea.focus();
+  textArea.select();
+ 
+  try {
+    const exitoso = document.execCommand('copy');
+    if (exitoso) {
+      alert("✅ Enlace de asistencia copiado al portapapeles.");
+    }
+  } catch (err) {
+    console.error('Fallback falló:', err);
+    alert("❌ No se pudo copiar. URL: " + texto);
+  }
+  document.body.removeChild(textArea);
+}
+
+async function abrirModalCrear() {
+  // 1. Mostramos el modal de inmediato
+  document.getElementById('modal-crear').style.display = 'block';
+  const select = document.getElementById('nuevo-proyecto');
+  select.innerHTML = '<option>⏳ Cargando proyectos...</option>';
+
+  try {
+    // 2. Pedimos la lista de proyectos mediante fetch
+    const respuesta = await fetch(URL_WEB_APP, {
+      method: 'POST',
+      body: JSON.stringify({
+        accion: 'obtenerListaProyectos'
+      })
+    });
+
+    const proyectos = await respuesta.json();
+   
+    // Guardamos en la variable global por si la necesitas luego
+    listaProyectosGlobal = proyectos;
+
+    // 3. Llenamos el select con los datos recibidos
+    select.innerHTML = '<option value="">-- Seleccione Proyecto --</option>';
+    proyectos.forEach(p => {
+      let opt = document.createElement('option');
+      opt.value = p;
+      opt.innerText = p;
+      select.appendChild(opt);
+    });
+
+  } catch (error) {
+    console.error("Error al cargar proyectos:", error);
+    select.innerHTML = '<option value="">❌ Error al cargar</option>';
+    alert("No se pudo conectar con Google para obtener la lista de proyectos.");
+  }
+}
+
+function cerrarModalCrear() {
+  document.getElementById('modal-crear').style.display = 'none';
+}
+
+async function guardarEventoEmergencia() {
+  const datos = {
+    titulo: document.getElementById('nuevo-titulo').value,
+    proyecto: document.getElementById('nuevo-proyecto').value,
+    fecha: document.getElementById('nueva-fecha').value,
+    hora: document.getElementById('nueva-hora').value,
+    horaFin: document.getElementById('nueva-hora-fin').value
+  };
+
+  // 1. Validación de campos vacíos
+  if (!datos.titulo || !datos.proyecto || !datos.fecha || !datos.hora || !datos.horaFin) {
+    alert("⚠️ Atención: Todos los campos son obligatorios para crear el evento.");
+    return;
+  }
+
+  // 2. Feedback visual de procesamiento
+  const grid = document.getElementById('calendar-grid');
+  const backupGrid = grid.innerHTML;
+  grid.innerHTML = '<div style="text-align:center; padding:20px;">🚀 Procesando con Google Calendar... Por favor espera.</div>';
+
+  cerrarModalCrear();
+
+  try {
+    // 3. Envío de datos mediante fetch al doPost de Google
+    const respuesta = await fetch(URL_WEB_APP, {
+      method: 'POST',
+      body: JSON.stringify({
+        accion: 'crearEventoEmergencia',
+        datos: datos // Enviamos el objeto completo de datos
+      })
+    });
+
+    const res = await respuesta.json();
+
+    if (res.status === "success") {
+      alert("✅ ¡Excelente! El evento ha sido creado en Calendar y registrado en la base de datos.");
+      // Sincroniza y refresca la vista llamando a tu función de carga
+      if (typeof cargarDatos === 'function') await cargarDatos();
+    } else {
+      alert("❌ No se pudo crear el evento.\n\nMotivo: " + res.message);
+      grid.innerHTML = backupGrid; // Restauramos la vista si falla el servidor
+    }
+
+  } catch (error) {
+    console.error("Error crítico al crear evento:", error);
+    alert("🛑 Error de conexión: No se pudo contactar con el servidor. Revisa tu internet.");
+    grid.innerHTML = backupGrid;
+  }
+}
+
+// Esta es la pieza que falta para convertir números en formato de reloj
+function formatearTiempo(segundosTotales) {
+  const min = Math.floor(segundosTotales / 60);
+  const seg = segundosTotales % 60;
+  // Agregamos un cero a la izquierda si el número es menor a 10
+  const minStr = min < 10 ? "0" + min : min;
+  const segStr = seg < 10 ? "0" + seg : seg;
+  return minStr + ":" + segStr;
+}
+
+function finalizarActaDirecto() {
+    // Esta función se encarga de avisar al servidor que pase a "Transcrita"
+    // incluso si no hay un nuevo trozo de audio que enviar.
+    google.script.run
+        .withSuccessHandler(resIA => {
+            document.getElementById('estado-texto').innerText = "✅ Transcripción Finalizada";
+            document.getElementById('estado-texto').style.color = "blue";
+            if (typeof cargarDatos === 'function') cargarDatos();
+            alert("¡Listo! El acta ha sido finalizada con éxito.");
+        })
+        .procesarAudioIndividual(null, idEventoActivo, segundosPendientesPausa, true); 
+        // Enviamos 'null' en el archivo porque no hay audio nuevo, pero 'true' en esFinal
+}
+
+async function finalizarActaDirecto() {
+  const estadoTexto = document.getElementById('estado-texto');
+  estadoTexto.innerText = "⌛ Finalizando acta y cerrando sesión...";
+  estadoTexto.style.color = "blue";
+
+  try {
+    // Usamos fetch para avisar al servidor que cierre el acta
+    const respuesta = await fetch(URL_WEB_APP, {
+      method: 'POST',
+      body: JSON.stringify({
+        accion: 'procesarAudioIndividual', // Reutilizamos la lógica de procesamiento
+        fileId: null,                   // No hay archivo nuevo
+        idEvento: idEventoActivo,
+        segundos: segundosPendientesPausa,
+        esFinal: true                   // <--- ESTO ES LO QUE CIERRA EL ACTA
+      })
+    });
+
+    const resIA = await respuesta.json();
+
+    if (resIA.status === "success") {
+      estadoTexto.innerText = "✅ Transcripción Finalizada";
+      estadoTexto.style.color = "blue";
+     
+      // Refrescamos la agenda para ver el cambio de estado
+      if (typeof cargarDatos === 'function') await cargarDatos();
+     
+      alert("¡Listo! El acta ha sido finalizada con éxito.");
+    } else {
+      alert("Error al finalizar: " + resIA.message);
+    }
+
+  } catch (error) {
+    console.error("Error al cerrar acta:", error);
+    estadoTexto.innerText = "❌ Error al finalizar";
+    alert("No se pudo conectar con el servidor para cerrar el acta.");
+  }
+}
+
+
+async function descargarPDFAsistencia(idEvento, tituloEvento) {
+  // Feedback visual (capturamos el botón desde el evento)
+  const btn = event.target;
+  const originalText = btn.innerText;
+  btn.innerText = "⏳ Generando...";
+  btn.disabled = true;
+
+  try {
+    // LLAMADA COMPATIBLE CON GITHUB
+    const respuesta = await fetch(URL_WEB_APP, {
+      method: 'POST',
+      body: JSON.stringify({
+        accion: 'obtenerDatosAsistenciaPDF',
+        idEvento: idEvento
+      })
+    });
+
+    const res = await respuesta.json();
+    btn.innerText = originalText;
+    btn.disabled = false;
+
+    if (!res.success || !res.lista || res.lista.length === 0) {
+      alert("No se encontraron asistentes registrados para este evento.");
+      return;
+    }
+
+    // --- INICIO LÓGICA JSPDF (Tu diseño original) ---
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF('l', 'mm', 'a4');
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(16);
+    doc.text("REPORTE DE ASISTENCIA AL EVENTO", 148.5, 15, { align: "center" });
+
+    doc.setFontSize(12);
+    doc.text(`Evento: ${tituloEvento}`, 20, 25);
+    doc.text(`ID: ${idEvento}`, 20, 32);
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.text("Fecha de reporte: " + new Date().toLocaleString(), 20, 39);
+    doc.line(20, 42, 277, 42);
+
+    doc.setFont("helvetica", "bold");
+    let y = 50;
+    const xDni = 20, xNombre = 45, xInst = 110, xArea = 160, xMod = 210, xFecha = 235;
+   
+    doc.text("DNI", xDni, y);
+    doc.text("Nombres y Apellidos", xNombre, y);
+    doc.text("Institución", xInst, y);
+    doc.text("Área / Cargo", xArea, y);
+    doc.text("Mod.", xMod, y);
+    doc.text("Fecha Registro", xFecha, y);
+   
+    y += 7;
+    doc.line(20, y-4, 277, y-4);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+
+    res.lista.forEach(asist => {
+      if (y > 185) {
+        doc.addPage('l', 'mm', 'a4');
+        y = 20;
+      }
+     
+      doc.text(asist.dni ? asist.dni.toString() : "-", xDni, y);
+      doc.text(asist.nombres ? asist.nombres.substring(0, 35) : "-", xNombre, y);
+      doc.text(asist.institucion ? asist.institucion.substring(0, 25) : "-", xInst, y);
+      doc.text(`${asist.area || ""} / ${asist.cargo || ""}`.substring(0, 50), xArea, y);
+      doc.text(asist.modalidad || "-", xMod, y);
+      doc.text(asist.fecha || "-", xFecha, y);
+     
+      y += 8;
+      doc.setDrawColor(230);
+      doc.line(20, y-4, 277, y-4);
+      doc.setDrawColor(0);
+    });
+
+    doc.save(`Asistencia_${idEvento}.pdf`);
+
+  } catch (error) {
+    console.error("Error al generar PDF:", error);
+    alert("Error de conexión al obtener los datos de asistencia.");
+    btn.innerText = originalText;
+    btn.disabled = false;
+  }
+}
+
+  function obtenerUrlAsistencia(id) {
+  // En lugar de usar la etiqueta de Google, usamos la URL que ya conocemos
+  return URL_WEB_APP + "?id=" + id;
+}
+
+// --- VARIABLES DE CONFIGURACIÓN GLOBAL ---
+
+const URL_PORTERO = "https://script.google.com/macros/s/AKfycbwo7DQZ8RZL1Vs6YJyjKVAGlG7d4cL82hcGnvjZFu-_lbRUB47bCd3iazAGPwZKTkd7vQ/exec"; // <--- PEGA AQUÍ LA URL DEL PORTERO
+
+/**
+ * Función que recibe la respuesta de Google One Tap / Button
+ */
+async function handleCredentialResponse(response) {
+    try {
+        // 1. Decodificar el email del JWT que envía Google
+        const base64Url = response.credential.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const payload = JSON.parse(window.atob(base64));
+        const emailUsuario = payload.email;
+
+        console.log("Intentando acceso para:", emailUsuario);
+
+        // 2. Consultar al Portero si el usuario existe y qué URL le corresponde
+        const res = await fetch(`${URL_PORTERO}?email=${emailUsuario}`);
+        const config = await res.json();
+
+        if (config.success) {
+            // ASIGNACIÓN DINÁMICA DEL BACKEND
+            URL_WEB_APP = config.urlBackend; 
+            
+            // 3. Interfaz: Ocultar login y mostrar aplicación
+            document.getElementById('login-section').style.display = 'none';
+            document.getElementById('app-content').style.display = 'block';
+            
+            // 4. Mostrar feedback del usuario en la barra superior
+            if (document.getElementById('user-info')) {
+                document.getElementById('user-info').innerText = "👤 " + emailUsuario;
+            }
+
+            // 5. Cargar los datos iniciales desde el nuevo Backend asignado
+            alert("Acceso concedido. Cargando su agenda...");
+            cargarDatos(); 
+
+        } else {
+            alert("Acceso denegado: " + config.message);
+        }
+    } catch (e) {
+        console.error("Error en flujo de login:", e);
+        alert("Error crítico al conectar con el servidor de acceso.");
+    }
+}
+
+    </script>
+  </body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
