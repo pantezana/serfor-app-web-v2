@@ -1396,7 +1396,7 @@ async function handleCredentialResponse(response) {
         const payload = JSON.parse(window.atob(base64));        
         USUARIO_EMAIL = payload.email; // <--- GUARDAMOS EL EMAIL GLOBALMENTE
 
-        console.log("Intentando acceso para:", emailUsuario);
+        console.log("Intentando acceso para:", USUARIO_EMAIL);
 
         // 2. Consultar al Portero si el usuario existe y qué URL le corresponde
         const res = await fetch(`${URL_PORTERO}?email=${USUARIO_EMAIL}`);
