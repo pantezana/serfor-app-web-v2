@@ -190,7 +190,7 @@ async function cargarDatos() {
   document.getElementById('calendar-grid').innerHTML = '<p class="msg">Conectando con SERFOR...</p>';
 
   // CONSTRUIMOS LA URL CON EL PARÁMETRO
-  const urlFinal = URL_WEB_APP + "?accion=obtenerEventos&email=$" + USUARIO_EMAIL;
+  const urlFinal = URL_WEB_APP + "?accion=obtenerEventos&email=" + USUARIO_EMAIL;
   
   try {
     // IMPORTANTE: Al ser GET no hay errores de CORS en Apps Script
