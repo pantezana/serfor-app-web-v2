@@ -151,6 +151,8 @@
       
       let URL_WEB_APP = ""; // Se llenará dinámicamente tras el login
 
+      let USUARIO_EMAIL = ""; // Se captura el correo desde el login
+
       const URL_BACKEND = "TU_URL_DE_DESPLIEGUE_AQUÍ"; // La obtendrás al publicar
 
 async function llamarBackend(accion, datos = {}) {
@@ -188,8 +190,8 @@ async function cargarDatos() {
   document.getElementById('calendar-grid').innerHTML = '<p class="msg">Conectando con SERFOR...</p>';
 
   // CONSTRUIMOS LA URL CON EL PARÁMETRO
-  const urlFinal = URL_WEB_APP + "?accion=obtenerEventos";
-
+  const urlFinal = URL_WEB_APP + "?accion=obtenerEventos&email=$" + USUARIO_EMAIL;
+  
   try {
     // IMPORTANTE: Al ser GET no hay errores de CORS en Apps Script
     const respuesta = await fetch(urlFinal);
@@ -1391,13 +1393,13 @@ async function handleCredentialResponse(response) {
         // 1. Decodificar el email del JWT que envía Google
         const base64Url = response.credential.split('.')[1];
         const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-        const payload = JSON.parse(window.atob(base64));
-        const emailUsuario = payload.email;
+        const payload = JSON.parse(window.atob(base64));        
+        USUARIO_EMAIL = payload.email; // <--- GUARDAMOS EL EMAIL GLOBALMENTE
 
         console.log("Intentando acceso para:", emailUsuario);
 
         // 2. Consultar al Portero si el usuario existe y qué URL le corresponde
-        const res = await fetch(`${URL_PORTERO}?email=${emailUsuario}`);
+        const res = await fetch(`${URL_PORTERO}?email=${USUARIO_EMAIL}`);
         const config = await res.json();
 
         if (config.success) {
