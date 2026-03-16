@@ -1180,7 +1180,9 @@ async function guardarEventoEmergencia() {
     proyecto: document.getElementById('nuevo-proyecto').value,
     fecha: document.getElementById('nueva-fecha').value,
     hora: document.getElementById('nueva-hora').value,
-    horaFin: document.getElementById('nueva-hora-fin').value
+    horaFin: document.getElementById('nueva-hora-fin').value,
+    // --- AJUSTE AQUÍ ---
+    email: USUARIO_EMAIL // Enviamos el email capturado en el login
   };
 
   // 1. Validación de campos vacíos
