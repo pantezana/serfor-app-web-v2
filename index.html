@@ -26,7 +26,7 @@
 
   <div id="app-content" style="display: none;">
     <div class="top-bar">
-      <h2>📅 Agenda Semanal v2📅</h2>                    
+      <h2>📅 Agenda Semanal v4📅</h2>                    
       <div class="button-group">
         <button class="btn-refresh" onclick="cargarDatos()">🔄 Sincronizar</button>
         <button class="btn-emergencia" onclick="abrirModalCrear()">➕ Crear Evento</button>
@@ -549,7 +549,7 @@ async function descargarPDF(idElemento) {
   const tipoDocumento = idElemento.includes('trans') ? "TRANSCRIPCIÓN" : "RESUMEN";
   const tituloEvento = document.getElementById('modal-titulo').innerText;
   
-  btn.innerText = "⏳ Generando...";
+  btn.innerText = "⏳ Generando Acta...";
   btn.disabled = true;
 
   try {
@@ -565,17 +565,17 @@ async function descargarPDF(idElemento) {
     const res = await respuesta.json();
     if (!res.success) throw new Error(res.error);
 
-    // --- 1. LIMPIEZA PROFUNDA DE TEXTO ---
-    // Eliminamos caracteres de retorno de carro extraños que confunden a jsPDF
-    let textoLimpio = res.texto.replace(/\r/g, "").trim();
-
-    const doc = new jsPDF({
-      orientation: "p",
-      unit: "mm",
-      format: "a4"
-    });
+    // --- 1. PROCESAMIENTO ESTRUCTURAL DEL TEXTO ---
+    // Paso A: Normalizar todos los saltos de línea (convertir \r en \n)
+    let textoBase = res.texto.replace(/\r/g, "\n");
     
-    // --- 2. ENCABEZADO ---
+    // Paso B: Forzar salto de línea antes de cada "Hablante" para asegurar estructura
+    // Esto evita que "Hablante 2" aparezca pegado al final de la frase de "Hablante 1"
+    textoBase = textoBase.replace(/(Hablante \d+:)/g, "\n$1");
+
+    const doc = new jsPDF({ orientation: "p", unit: "mm", format: "a4" });
+    
+    // --- 2. ENCABEZADO ESTILO INSTITUCIONAL ---
     doc.setFont("helvetica", "bold");
     doc.setFontSize(16);
     doc.text("ACTA DE REUNIÓN - " + tipoDocumento, 105, 20, { align: "center" });
@@ -586,48 +586,52 @@ async function descargarPDF(idElemento) {
     doc.text("Fecha de descarga: " + new Date().toLocaleDateString(), 20, 38);
     doc.line(20, 42, 190, 42); 
 
-    // --- 3. CONFIGURACIÓN DE ESCRITURA ---
+    // --- 3. RENDERIZADO CON FORMATO DE CONVERSACIÓN ---
     const margenX = 20;
     const anchoMax = 170;
-    const saltoLinea = 7.5; // Espacio entre líneas (Aumentado)
+    const interlineadoNormal = 6.5; 
+    const espacioEntreParrafos = 4; // Espacio extra para que no se vea apiñado
     const limitePagina = 275;
-    let actualY = 50; // Punto de inicio del texto
+    let actualY = 50; 
     
     doc.setFontSize(10.5);
-    doc.setFont("helvetica", "normal");
 
-    // Dividimos por saltos de línea existentes en el origen
-    const bloques = textoLimpio.split("\n");
+    // Dividimos por saltos de línea reales
+    const parrafos = textoBase.split("\n");
 
-    bloques.forEach(bloque => {
-      if (bloque.trim() === "") {
-        actualY += 4; // Espacio entre párrafos vacíos
-        return;
+    parrafos.forEach(parrafo => {
+      const textoLimpio = parrafo.trim();
+      if (textoLimpio === "") return; // Ignorar líneas vacías accidentales
+
+      // Si el párrafo empieza con "Hablante", lo ponemos en negrita o le damos más espacio
+      const esNuevaIntervencion = textoLimpio.startsWith("Hablante");
+      
+      if (esNuevaIntervencion) {
+        actualY += espacioEntreParrafos; // Espacio extra antes de que hable alguien nuevo
+        doc.setFont("helvetica", "bold");
+      } else {
+        doc.setFont("helvetica", "normal");
       }
 
-      // IMPORTANTE: splitTextToSize genera un ARRAY de líneas
-      const lineasWrap = doc.splitTextToSize(bloque, anchoMax);
+      // Ajustamos el texto al ancho de la página
+      const lineasWrap = doc.splitTextToSize(textoLimpio, anchoMax);
       
       lineasWrap.forEach(linea => {
-        // Verificar si necesitamos nueva página ANTES de escribir
         if (actualY > limitePagina) {
           doc.addPage();
-          actualY = 25; // Margen superior en nueva página
+          actualY = 25; 
         }
         
-        // Escribimos la línea y forzamos el salto
         doc.text(linea, margenX, actualY);
-        actualY += saltoLinea; 
+        actualY += interlineadoNormal;
       });
-
-      actualY += 2; // Un pequeño respiro extra entre párrafos
     });
 
     doc.save(`${tipoDocumento}_${idEventoActivo}.pdf`);
 
   } catch (error) {
     console.error("Error:", error);
-    alert("🛑 Error al generar el PDF.");
+    alert("🛑 Error al generar el PDF. Intente nuevamente.");
   } finally {
     btn.innerText = textoOriginalBtn;
     btn.disabled = false;
