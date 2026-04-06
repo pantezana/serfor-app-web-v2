@@ -543,52 +543,82 @@ async function cargarDatos() {
 
 async function descargarPDF(idElemento) {
   const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
-  const texto = document.getElementById(idElemento).value;
+  const btn = event.target; // Capturamos el botón para dar feedback
+  const textoOriginalBtn = btn.innerText;
+  
+  // 1. Identificamos qué estamos bajando
+  const tipoDocumento = idElemento.includes('trans') ? "TRANSCRIPCIÓN" : "RESUMEN";
   const tituloEvento = document.getElementById('modal-titulo').innerText;
   
-  const tipoDocumento = idElemento.includes('trans') ? "TRANSCRIPCIÓN" : "RESUMEN";
+  btn.innerText = "⏳ Consultando Documento...";
+  btn.disabled = true;
 
-  if (!texto) {
-    alert("No hay contenido para generar el PDF");
-    return;
-  }
+  try {
+    // 2. PEDIMOS EL TEXTO AL CEREBRO (Garantiza que venga completo desde el Doc)
+    const respuesta = await fetch(URL_WEB_APP, {
+      method: 'POST',
+      body: JSON.stringify({
+        accion: 'obtenerTextoCompletoParaPDF',
+        idEvento: idEventoActivo, // Usamos tu variable global verificada
+        tipo: tipoDocumento // Para que el cerebro sepa si traer Transcripción o Resumen
+      })
+    });
 
-  // --- Encabezado de la primera página ---
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(18);
-  doc.text("ACTA DE REUNIÓN - " + tipoDocumento, 105, 20, { align: "center" });
-  
-  doc.setFontSize(12);
-  doc.text(tituloEvento, 20, 35);
-  doc.setFont("helvetica", "normal");
-  doc.text("Fecha de descarga: " + new Date().toLocaleDateString(), 20, 42);
-  
-  doc.line(20, 45, 190, 45); // Línea divisoria
+    const res = await respuesta.json();
+    if (!res.success) throw new Error(res.error);
 
-  // --- Configuración de cuerpo de texto y saltos de página ---
-  const margenIzquierdo = 20;
-  const margenSuperiorInicial = 55;
-  const limiteInferior = 275; // Punto donde debe saltar de página (A4 mide 297mm)
-  const interlineado = 7;
-  let cursorY = margenSuperiorInicial;
+    const textoReal = res.texto;
 
-  doc.setFontSize(11);
-  const lineas = doc.splitTextToSize(texto, 170);
-
-  lineas.forEach(linea => {
-    // Verificar si la siguiente línea cabe en la página actual
-    if (cursorY > limiteInferior) {
-      doc.addPage();
-      cursorY = 20; // Reiniciar cursor en la nueva página
+    if (!textoReal || textoReal.length < 5) {
+      alert("El documento está vacío o no se pudo leer.");
+      return;
     }
-    
-    doc.text(linea, margenIzquierdo, cursorY);
-    cursorY += interlineado;
-  });
 
-  // Descarga
-  doc.save(`${tipoDocumento}_${idEventoActivo}.pdf`);
+    // 3. INICIO DE GENERACIÓN PDF (Tu lógica original intacta)
+    const doc = new jsPDF();
+    
+    // --- Encabezado ---
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(18);
+    doc.text("ACTA DE REUNIÓN - " + tipoDocumento, 105, 20, { align: "center" });
+    
+    doc.setFontSize(12);
+    doc.text(tituloEvento, 20, 35);
+    doc.setFont("helvetica", "normal");
+    doc.text("Fecha de descarga: " + new Date().toLocaleDateString(), 20, 42);
+    
+    doc.line(20, 45, 190, 45); 
+
+    // --- Configuración de cuerpo y saltos de página ---
+    const margenIzquierdo = 20;
+    const margenSuperiorInicial = 55;
+    const limiteInferior = 275; 
+    const interlineado = 7;
+    let cursorY = margenSuperiorInicial;
+    
+    doc.setFontSize(11);
+    // Usamos 'textoReal' traído del servidor
+    const lineas = doc.splitTextToSize(textoReal, 170);
+    
+    lineas.forEach(linea => {
+      if (cursorY > limiteInferior) {
+        doc.addPage();
+        cursorY = 20; 
+      }
+      doc.text(linea, margenIzquierdo, cursorY);
+      cursorY += interlineado;
+    });
+
+    // 4. Descarga final
+    doc.save(`${tipoDocumento}_${idEventoActivo}.pdf`);
+
+  } catch (error) {
+    console.error("Error al generar PDF:", error);
+    alert("🛑 No se pudo conectar con el servidor para obtener el acta completa.");
+  } finally {
+    btn.innerText = textoOriginalBtn;
+    btn.disabled = false;
+  }
 }
 
     // Cuando la IA termina con éxito, cambiamos el origen automáticamente
