@@ -543,41 +543,35 @@ async function cargarDatos() {
 
 async function descargarPDF(idElemento) {
   const { jsPDF } = window.jspdf;
-  const btn = event.target; // Capturamos el botón para dar feedback
+  const btn = event.target;
   const textoOriginalBtn = btn.innerText;
   
-  // 1. Identificamos qué estamos bajando
   const tipoDocumento = idElemento.includes('trans') ? "TRANSCRIPCIÓN" : "RESUMEN";
   const tituloEvento = document.getElementById('modal-titulo').innerText;
   
-  btn.innerText = "⏳ Consultando Documento...";
+  btn.innerText = "⏳ Consultando...";
   btn.disabled = true;
 
   try {
-    // 2. PEDIMOS EL TEXTO AL CEREBRO (Garantiza que venga completo desde el Doc)
     const respuesta = await fetch(URL_WEB_APP, {
       method: 'POST',
       body: JSON.stringify({
         accion: 'obtenerTextoCompletoParaPDF',
-        idEvento: idEventoActivo, // Usamos tu variable global verificada
-        tipo: tipoDocumento // Para que el cerebro sepa si traer Transcripción o Resumen
+        idEvento: idEventoActivo,
+        tipo: tipoDocumento
       })
     });
 
     const res = await respuesta.json();
     if (!res.success) throw new Error(res.error);
 
-    const textoReal = res.texto;
+    // --- PROCESAMIENTO DEL TEXTO ---
+    // Reemplazamos saltos de línea excesivos y normalizamos el texto
+    const textoReal = res.texto.replace(/\r\n/g, "\n").trim();
 
-    if (!textoReal || textoReal.length < 5) {
-      alert("El documento está vacío o no se pudo leer.");
-      return;
-    }
-
-    // 3. INICIO DE GENERACIÓN PDF (Tu lógica original intacta)
     const doc = new jsPDF();
     
-    // --- Encabezado ---
+    // Encabezado (Igual que el tuyo)
     doc.setFont("helvetica", "bold");
     doc.setFontSize(18);
     doc.text("ACTA DE REUNIÓN - " + tipoDocumento, 105, 20, { align: "center" });
@@ -585,36 +579,53 @@ async function descargarPDF(idElemento) {
     doc.setFontSize(12);
     doc.text(tituloEvento, 20, 35);
     doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
     doc.text("Fecha de descarga: " + new Date().toLocaleDateString(), 20, 42);
-    
     doc.line(20, 45, 190, 45); 
 
-    // --- Configuración de cuerpo y saltos de página ---
+    // --- CONFIGURACIÓN DE CUERPO MEJORADA ---
     const margenIzquierdo = 20;
-    const margenSuperiorInicial = 55;
+    const anchoUtil = 170;
     const limiteInferior = 275; 
-    const interlineado = 7;
-    let cursorY = margenSuperiorInicial;
+    const interlineado = 8.5; // <--- Aumentado para evitar el apiñamiento
+    let cursorY = 55;
     
     doc.setFontSize(11);
-    // Usamos 'textoReal' traído del servidor
-    const lineas = doc.splitTextToSize(textoReal, 170);
-    
-    lineas.forEach(linea => {
-      if (cursorY > limiteInferior) {
-        doc.addPage();
-        cursorY = 20; 
+    doc.setFont("helvetica", "normal");
+
+    // Dividimos el texto por párrafos primero para respetar los saltos del Doc
+    const parrafos = textoReal.split("\n");
+
+    parrafos.forEach(parrafo => {
+      // Si el párrafo está vacío, añadimos un espacio extra (salto de párrafo)
+      if (parrafo.trim() === "") {
+        cursorY += 5; 
+        return;
       }
-      doc.text(linea, margenIzquierdo, cursorY);
-      cursorY += interlineado;
+
+      // Dividimos cada párrafo en líneas según el ancho
+      const lineas = doc.splitTextToSize(parrafo, anchoUtil);
+      
+      lineas.forEach(linea => {
+        // Control de salto de página
+        if (cursorY > limiteInferior) {
+          doc.addPage();
+          cursorY = 25; 
+        }
+        
+        doc.text(linea, margenIzquierdo, cursorY);
+        cursorY += interlineado;
+      });
+
+      // Añadimos un pequeño espacio extra después de cada párrafo terminado
+      cursorY += 3; 
     });
 
-    // 4. Descarga final
     doc.save(`${tipoDocumento}_${idEventoActivo}.pdf`);
 
   } catch (error) {
-    console.error("Error al generar PDF:", error);
-    alert("🛑 No se pudo conectar con el servidor para obtener el acta completa.");
+    console.error("Error:", error);
+    alert("🛑 Error al generar el PDF.");
   } finally {
     btn.innerText = textoOriginalBtn;
     btn.disabled = false;
